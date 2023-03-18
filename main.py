@@ -13,6 +13,8 @@ init_obj.SetActionKeys((pygame.K_w, pygame.K_UP), ((pygame.K_a, pygame.K_d), (py
 init_obj.Bullet(25,  r"C:\Users\wong2\PycharmProjects\GameMaker\imgs\bullet.png",4)
 
 init_obj.Terrain(r"C:\Users\wong2\PycharmProjects\GameMaker\imgs\Terrain.png")
+
+display_resolution = init_obj.WIN_X, init_obj.WIN_Y
 obstacles_post = []
 
 
