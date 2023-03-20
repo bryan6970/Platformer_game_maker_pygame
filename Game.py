@@ -7,10 +7,11 @@ import math
 import logging as log
 import time
 
-
 log.basicConfig(filename='game_creater.log', format='%(asctime)s:%(name)s:%(message)s')
 
-def displayText(win, text: str,color=(255,255,255),position='center', display_resolution = None, font="Impact", size = 30, time_on_screen= None) -> None:
+
+def displayText(win, text: str, color=(255, 255, 255), position='center', display_resolution=None, font="Impact",
+                size=30, time_on_screen=None) -> None:
     """
     blit position is center position
     :param text:
@@ -18,11 +19,11 @@ def displayText(win, text: str,color=(255,255,255),position='center', display_re
     :return:
     """
 
-    font =pygame.font.SysFont(font , size)
+    font = pygame.font.SysFont(font, size)
 
     try:
         if position == "center":
-            position = display_resolution[0]/ 2 , display_resolution[1] / 2
+            position = display_resolution[0] / 2, display_resolution[1] / 2
     except Exception:
         raise LookupError("If you are using the position \"center\", put in the display resolution in (x,y) format")
 
@@ -34,7 +35,7 @@ def displayText(win, text: str,color=(255,255,255),position='center', display_re
     text_rect.center = position
 
     # Blit the text surface onto the screen
-    win.blit(text_surface,text_rect)
+    win.blit(text_surface, text_rect)
 
     if time_on_screen is not None:
         pygame.display.update()
@@ -42,12 +43,12 @@ def displayText(win, text: str,color=(255,255,255),position='center', display_re
 
 
 class Game:
-    def __init__(self,init_object, obstacles_x_y_pos=None, fill_base=True):
+    def __init__(self, init_object, obstacles_x_y_pos=None, fill_base=True):
         self.constants = init_object
 
         self.display_resolution = pygame.display.Info().current_w, pygame.display.Info().current_h
 
-        self.Player1 = Player(init_object,0, self.constants.player1_position, self.display_resolution)
+        self.Player1 = Player(init_object, 0, self.constants.player1_position, self.display_resolution)
         self.Player2 = Player(init_object, 1, self.constants.player2_position, self.display_resolution)
         self.Player1_GUN = Gun(init_object, 0, self.constants.player1_position, self.Player1, self.Player2)
         self.Player2_GUN = Gun(init_object, 1, self.constants.player2_position, self.Player1, self.Player2)
@@ -56,19 +57,20 @@ class Game:
         self.objects = []
 
         if fill_base:
-            for x in range(math.ceil(self.constants.win.get_width() / self.constants.TERRAIN_SIZE)):
+            for x in range(math.ceil(self.constants.win.get_width() / self.constants.TERRAIN_SIZE[0])):
                 base = Object(self.constants,
-                              (x * self.constants.TERRAIN_SIZE, self.constants.win.get_height() - self.constants.TERRAIN_SIZE))
+                              (x * self.constants.TERRAIN_SIZE[0],
+                               self.constants.win.get_height() - self.constants.TERRAIN_SIZE[0]))
                 self.objects.append(base)
 
         for x in range(len(obstacles_x_y_pos)):
             self.objects.append(Object(init_object, obstacles_x_y_pos[x]))
 
-
     class init:
         win = None
 
         def __init__(self):
+
             pygame.init()
 
             self.win = None
@@ -79,6 +81,7 @@ class Game:
             self.TERRAIN_SIZE = None
             self.BULLET_SIZE = None
             self.BULLET_SOUND_PATH = None
+            self.RELOAD_SOUND_PATH = None
             self.BULLET_DISTANCE_RATIO = None
             self.BULLET_DISTANCE_FROM_PLAYER = None
             self.PLAYER1_IMG = None
@@ -109,7 +112,7 @@ class Game:
             self.PLAYER1_JUMP_KEY = None
             self.PLAYER2_JUMP_KEY = None
 
-        def Window(self,win_size: tuple,  FULLSCREEN=False):
+        def Window(self, win_size: tuple, FULLSCREEN=False):
             if FULLSCREEN:
                 self.win = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
                 win = self.win
@@ -121,7 +124,8 @@ class Game:
             self.WIN_Y = pygame.display.get_window_size()[1]
 
         def Player(self, player_size: tuple, player_img_path__facing_left: str, PLAYER_SPEED=5,
-         left_player_starting_pos: tuple = "default",PLAYER_HEALTH=5, GRAVITY=0.05, PLAYER_JUMP_FORCE=7.5, NO_JUMPS=2):
+                   left_player_starting_pos: tuple = "default", PLAYER_HEALTH=5, GRAVITY=0.05, PLAYER_JUMP_FORCE=7.5,
+                   NO_JUMPS=2):
 
             # Set constants
             self.PLAYER_SPEED = PLAYER_SPEED
@@ -133,9 +137,12 @@ class Game:
             self.PLAYER_X, self.PLAYER_Y = player_size
 
             # Scale imgs
-            self.PLAYER1_IMG = pygame.transform.scale(pygame.image.load(player_img_path__facing_left).convert_alpha(),player_size)
+            self.PLAYER1_IMG = pygame.transform.scale(pygame.image.load(player_img_path__facing_left).convert_alpha(),
+                                                      player_size)
 
-            self.PLAYER2_IMG = pygame.transform.flip(pygame.transform.scale(pygame.image.load(os.path.join(player_img_path__facing_left)).convert_alpha(),player_size), True, False)
+            self.PLAYER2_IMG = pygame.transform.flip(
+                pygame.transform.scale(pygame.image.load(os.path.join(player_img_path__facing_left)).convert_alpha(),
+                                       player_size), True, False)
 
             # Get player starting pos
             if left_player_starting_pos == "default":
@@ -144,10 +151,12 @@ class Game:
 
             else:
                 self.player1_position = left_player_starting_pos
-                self.player2_position = self.WIN_X - left_player_starting_pos[0] - self.PLAYER_X, self.WIN_Y - left_player_starting_pos[
-                    1] - self.PLAYER_Y
+                self.player2_position = self.WIN_X - left_player_starting_pos[0] - self.PLAYER_X, self.WIN_Y - \
+                                        left_player_starting_pos[
+                                            1] - self.PLAYER_Y
 
-        def SetActionKeys(self,jump_keys: tuple, movement_keys__both_players: tuple, fire_reload_keys__both_players: tuple):
+        def SetActionKeys(self, jump_keys: tuple, movement_keys__both_players: tuple,
+                          fire_reload_keys__both_players: tuple):
             """
             :param jump_keys: use pygame.(key). Order is P1, P2
             :param movement_keys__both_players: LEFT_RIGHT, use pygame.(key). Order is P1, P2
@@ -189,14 +198,17 @@ class Game:
             log.debug(
                 f"Keys values = {self.PLAYER1_MOVEMENT_KEYS, self.PLAYER2_MOVEMENT_KEYS, self.PLAYER1_FIRE_KEY, self.PLAYER1_RELOAD_KEY, self.PLAYER2_FIRE_KEY, self.PLAYER2_RELOAD_KEY, self.PLAYER1_JUMP_KEY, self.PLAYER2_JUMP_KEY}")
 
-        def Bullet(self ,bullet_size: int, bullet_img_path__facing_left: str, top_of_player_to_bullet__dist_ratio: int, bullet_sound_path=None, BULLET_SPEED=15, MAGAZINE_SIZE=10, RELOAD_TIME_SECONDS=5,):
+        def Bullet(self, bullet_size: int, bullet_img_path__facing_left: str, top_of_player_to_bullet__dist_ratio: int,
+                   gun_fire_sound_path=None, gun_reload_sound_path=None, BULLET_SPEED=15, MAGAZINE_SIZE=10,
+                   RELOAD_TIME_SECONDS=5, ):
 
             self.BULLET_SIZE = bullet_size
             self.BULLET_SPEED = BULLET_SPEED
             self.BULLET_DISTANCE_RATIO = top_of_player_to_bullet__dist_ratio
             self.BULLET_DISTANCE_FROM_PLAYER = self.PLAYER_Y / self.BULLET_DISTANCE_RATIO
 
-            self.BULLET_SOUND_PATH = bullet_sound_path
+            self.BULLET_SOUND_PATH = gun_fire_sound_path
+            self.RELOAD_SOUND_PATH = gun_reload_sound_path
 
             self.MAGAZINE_SIZE = MAGAZINE_SIZE
             self.RELOAD_TIME_SECONDS = RELOAD_TIME_SECONDS
@@ -209,63 +221,15 @@ class Game:
                                        (bullet_size, bullet_size)), True,
                 False)
 
-        def Terrain(self, terrain_img_path: str, terrain_size: int = 'default'):
+        def Terrain(self, terrain_img_path: str, terrain_size: tuple = 'default'):
 
             if terrain_size == 'default':
-                self.TERRAIN_SIZE = self.PLAYER_Y / 4 * 3
+                self.TERRAIN_SIZE = [self.PLAYER_Y / 4 * 3 for i in range(2)]
             else:
                 self.TERRAIN_SIZE = terrain_size
 
-            self.TERRAIN_IMG = pygame.transform.scale((pygame.image.load(terrain_img_path)), (self.TERRAIN_SIZE, self.TERRAIN_SIZE))
-
-    def _check_collide_player(self, player_number: int, left_opponent_bullet_list: list,
-                              right_opponent_bullet_list: list):
-        """
-        :param player_number: (int) 0 for player 1, 1 for player 2
-        :param right_opponent_bullet_list: list of opponent (x, y ) bullet positions
-        :param left_opponent_bullet_list: list of opponent (x, y) bullet positions
-        :return: Number of bullets that hit
-        """
-
-        score = 0
-        if player_number == 0:
-            for i, bullet in enumerate(left_opponent_bullet_list):
-
-                if self.Player1.rect.colliderect(bullet):
-                    score = 1
-                    left_opponent_bullet_list.remove(bullet)
-
-                if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
-                    left_opponent_bullet_list.remove(bullet)
-
-            for i, bullet in enumerate(right_opponent_bullet_list):
-
-                if self.Player1.rect.colliderect(bullet):
-                    score = 1
-                    right_opponent_bullet_list.remove(bullet)
-
-                if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
-                    right_opponent_bullet_list.remove(bullet)
-
-        elif player_number == 1:
-            for i, bullet in enumerate(left_opponent_bullet_list):
-                if self.Player2.rect.colliderect(bullet):
-                    score = 1
-                    left_opponent_bullet_list.remove(bullet)
-
-                if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
-                    left_opponent_bullet_list.remove(bullet)
-
-            for i, bullet in enumerate(right_opponent_bullet_list):
-                if self.Player2.rect.colliderect(bullet):
-                    score = 1
-                    right_opponent_bullet_list.remove(bullet)
-
-                if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
-                    right_opponent_bullet_list.remove(bullet)
-
-        # print('score:', score)
-        return score, left_opponent_bullet_list, right_opponent_bullet_list
+            self.TERRAIN_IMG = pygame.transform.scale((pygame.image.load(terrain_img_path)),
+                                                      self.TERRAIN_SIZE)
 
     def run_game(self, movement_input_list, gun_input_list, running_fps: float):
         """
@@ -350,18 +314,68 @@ class Game:
         # print(self.Player1.health,self.Player2.health)
 
         if self.Player1.health <= 0:
-            displayText(self.constants.win, text="Player 2 wins", position="center", display_resolution=(self.constants.WIN_X, self.constants.WIN_Y), time_on_screen=2)
+            displayText(self.constants.win, text="Player 2 wins", position="center",
+                        display_resolution=(self.constants.WIN_X, self.constants.WIN_Y), time_on_screen=2)
             sys.exit()
         elif self.Player2.health <= 0:
             displayText(self.constants.win, text="Player 1 wins", position="center",
                         display_resolution=(self.constants.WIN_X, self.constants.WIN_Y), time_on_screen=2)
             sys.exit()
 
-
         pygame.display.update()
 
+    def _check_collide_player(self, player_number: int, left_opponent_bullet_list: list,
+                              right_opponent_bullet_list: list):
+        """
+        :param player_number: (int) 0 for player 1, 1 for player 2
+        :param right_opponent_bullet_list: list of opponent (x, y ) bullet positions
+        :param left_opponent_bullet_list: list of opponent (x, y) bullet positions
+        :return: Number of bullets that hit
+        """
+
+        score = 0
+        if player_number == 0:
+            for i, bullet in enumerate(left_opponent_bullet_list):
+
+                if self.Player1.rect.colliderect(bullet):
+                    score = 1
+                    left_opponent_bullet_list.remove(bullet)
+
+                if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
+                    left_opponent_bullet_list.remove(bullet)
+
+            for i, bullet in enumerate(right_opponent_bullet_list):
+
+                if self.Player1.rect.colliderect(bullet):
+                    score = 1
+                    right_opponent_bullet_list.remove(bullet)
+
+                if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
+                    right_opponent_bullet_list.remove(bullet)
+
+        elif player_number == 1:
+            for i, bullet in enumerate(left_opponent_bullet_list):
+                if self.Player2.rect.colliderect(bullet):
+                    score = 1
+                    left_opponent_bullet_list.remove(bullet)
+
+                if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
+                    left_opponent_bullet_list.remove(bullet)
+
+            for i, bullet in enumerate(right_opponent_bullet_list):
+                if self.Player2.rect.colliderect(bullet):
+                    score = 1
+                    right_opponent_bullet_list.remove(bullet)
+
+                if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
+                    right_opponent_bullet_list.remove(bullet)
+
+        # print('score:', score)
+        return score, left_opponent_bullet_list, right_opponent_bullet_list
+
+
 class Player:
-    def __init__(self,init_obj, player_number: int, player_position: list, display_resolution_width_height: tuple):
+    def __init__(self, init_obj, player_number: int, player_position: list, display_resolution_width_height: tuple):
         self.init_obj = init_obj
 
         self.player_number = player_number
@@ -463,14 +477,13 @@ class Player:
         self.flipped = flip_img
 
     def _display_health(self):
-        displayText(self.init_obj.win,text=str(self.health),color=(255,255,255),position=(self.rect.midtop))
+        displayText(self.init_obj.win, text=str(self.health), color=(255, 255, 255), position=self.rect.midtop)
 
 
 class Object:
-    def __init__(self,init_obj,position: tuple):
+    def __init__(self, init_obj, position: tuple):
 
         self.constants = init_obj
-
 
         self.image = init_obj.TERRAIN_IMG
         self.x_pos = position[0]
@@ -529,8 +542,6 @@ class Object:
 
                     player.rect.left = self.rect.right
 
-
-
     def check_collision_bullet(self, left_bullet_rects: list, right_bullet_rects: list):
         """
         "Only works in pygame"
@@ -552,16 +563,25 @@ class Object:
         return left_bullet_rects, right_bullet_rects
 
 
-
 class Gun:
-    def __init__(self,init_obj, player_number, player_position, player1, player2):
+    def __init__(self, init_obj, player_number, player_position, player1, player2):
         self.init_obj = init_obj
 
         if init_obj.BULLET_SOUND_PATH is not None:
             self.gunshot_sound = pygame.mixer.Sound(init_obj.BULLET_SOUND_PATH)
         else:
             self.gunshot_sound = None
-            warnings.warn("No bullet sound path sent, there will not be any bullet firing sounds. To solve, pass it into the gun function of the initilization process", UserWarning)
+            warnings.warn(
+                "No bullet sound path sent, there will not be any bullet firing sounds. To solve, pass it into the gun function of the initilization process",
+                UserWarning)
+
+        if self.init_obj.RELOAD_SOUND_PATH is not None:
+            self.reload_sound = pygame.mixer.Sound(self.init_obj.RELOAD_SOUND_PATH)
+        else:
+            self.gunshot_sound = None
+            warnings.warn(
+                "No reload sound path sent. To solve, pass it into the gun function of the initilization process",
+                UserWarning)
 
         self.BULLET_IMG = self.init_obj.PLAYER1_BULLET if player_number == 0 else self.init_obj.PLAYER2_BULLET
         self.BULLET_IMG_MASK = pygame.mask.from_surface(self.BULLET_IMG)
@@ -591,7 +611,8 @@ class Gun:
 
         # print(self.magazine)
         if Reload_weapon or self.magazine == 0:
-            # print('reloading')
+            if self.reloading is False:
+                self.reload_sound.play()
             self._reload()
 
         if self.magazine > 0 and not self.reloading:
@@ -657,10 +678,7 @@ class Gun:
             self.reloading = False
 
 
-
-
 def run_game(init_obj, obstacles_x_y_pos, fill_base=False):
-
     game = Game(init_obj, obstacles_x_y_pos, fill_base)
     Clock = pygame.time.Clock()
     while True:
