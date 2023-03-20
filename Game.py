@@ -9,11 +9,14 @@ import time
 
 log.basicConfig(filename='game_creater.log', format='%(asctime)s:%(name)s:%(message)s')
 
+frame_index = 0
+
 
 def displayText(win, text: str, color=(255, 255, 255), position='center', display_resolution=None, font="Impact",
                 size=30, time_on_screen=None) -> None:
     """
     blit position is center position
+    :param win:
     :param text:
     :param position:
     :return:
@@ -42,7 +45,15 @@ def displayText(win, text: str, color=(255, 255, 255), position='center', displa
         time.sleep(time_on_screen)
 
 
+def blitFrame(win, frames: list, rect, animation_speed=1) -> None:
+    global frame_index
+    win.blit(frames[math.floor(frame_index * animation_speed % len(frames))], rect)
+    frame_index += 0.01
+
+
 class Game:
+    global frame_index
+
     def __init__(self, init_object, obstacles_x_y_pos=None, fill_base=True):
         self.constants = init_object
 
@@ -66,9 +77,9 @@ class Game:
         for x in range(len(obstacles_x_y_pos)):
             self.objects.append(Object(init_object, obstacles_x_y_pos[x]))
 
-    class init:
-        win = None
+        self.frame_index = 0
 
+    class init:
         def __init__(self):
 
             pygame.init()
@@ -76,29 +87,42 @@ class Game:
             self.win = None
             self.WIN_X = None
             self.WIN_Y = None
-            self.PLAYER_X = None
-            self.PLAYER_Y = None
-            self.TERRAIN_SIZE = None
+
             self.BULLET_SIZE = None
-            self.BULLET_SOUND_PATH = None
+            self.BULLET_FIRE_SOUND_PATH = None
             self.RELOAD_SOUND_PATH = None
             self.BULLET_DISTANCE_RATIO = None
             self.BULLET_DISTANCE_FROM_PLAYER = None
+
+            self.PLAYER_X = None
+            self.PLAYER_Y = None
             self.PLAYER1_IMG = None
             self.PLAYER2_IMG = None
-            self.TERRAIN_IMG = None
-            self.PLAYER1_BULLET = None
-            self.PLAYER2_BULLET = None
+            self.player_running_frames_left = None
+            self.player_running_frames_right = None
+            self.player_animation = False
+
             self.PLAYER_SPEED = None
-            self.BULLET_SPEED = None
-            self.MAGAZINE_SIZE = None
-            self.RELOAD_TIME_SECONDS = None
+
             self.PLAYER_HEALTH = None
             self.GRAVITY = None
             self.PLAYER_JUMP_FORCE = None
             self.NO_JUMPS = None
+
+            self.PLAYER1_BULLET = None
+            self.PLAYER2_BULLET = None
+
+            self.MAGAZINE_SIZE = None
+            self.RELOAD_TIME_SECONDS = None
+
+            self.BULLET_SPEED = None
+
+            self.TERRAIN_SIZE = None
+            self.TERRAIN_IMG = None
+
             self.TERRAIN_PLAYER_BORDER_X = 0
             self.TERRAIN_PLAYER_BORDER_Y = 0
+
             self.player1_position = None
             self.player2_position = None
 
@@ -125,7 +149,32 @@ class Game:
 
         def Player(self, player_size: tuple, player_img_path__facing_left: str, PLAYER_SPEED=5,
                    left_player_starting_pos: tuple = "default", PLAYER_HEALTH=5, GRAVITY=0.05, PLAYER_JUMP_FORCE=7.5,
-                   NO_JUMPS=2):
+                   NO_JUMPS=2, running_left_sprite_sheet=None, each_image_size=None, **running_left_sprites_imgs):
+
+            # Check sprite sheets
+            if running_left_sprites_imgs and running_left_sprite_sheet:
+                raise ValueError(
+                    "Both 'running_left_sprites_imgs' and 'sprite_sheet' parameters should not be filled at the same time.")
+
+            # tidy up spite sheets
+            elif running_left_sprite_sheet is not None:
+                self.player_running_frames_left = []
+                for y in range(0, running_left_sprite_sheet.get_height(), each_image_size[1]):
+                    for x in range(0, running_left_sprite_sheet.get_width(), each_image_size[0]):
+                        frame_rect = pygame.Rect(x, y, each_image_size[0], each_image_size[1])
+                        frame = running_left_sprite_sheet.subsurface(frame_rect)
+                        self.player_running_frames_left.append(frame)
+                self.player_animation = True
+
+                self.player_running_frames_right = [pygame.transform.flip(sprite, True, False) for sprite in
+                                                    self.player_running_frames_left]
+            elif running_left_sprites_imgs is not None:
+                self.player_running_frames_left = \
+                    [pygame.transform.scale(image, each_image_size) for image in running_left_sprites_imgs]
+                self.player_animation = True
+
+                self.player_running_frames_right = [pygame.transform.flip(sprite, True, False) for sprite in
+                                                    self.player_running_frames_left]
 
             # Set constants
             self.PLAYER_SPEED = PLAYER_SPEED
@@ -200,14 +249,14 @@ class Game:
 
         def Bullet(self, bullet_size: int, bullet_img_path__facing_left: str, top_of_player_to_bullet__dist_ratio: int,
                    gun_fire_sound_path=None, gun_reload_sound_path=None, BULLET_SPEED=15, MAGAZINE_SIZE=10,
-                   RELOAD_TIME_SECONDS=5, ):
+                   RELOAD_TIME_SECONDS=5):
 
             self.BULLET_SIZE = bullet_size
             self.BULLET_SPEED = BULLET_SPEED
             self.BULLET_DISTANCE_RATIO = top_of_player_to_bullet__dist_ratio
             self.BULLET_DISTANCE_FROM_PLAYER = self.PLAYER_Y / self.BULLET_DISTANCE_RATIO
 
-            self.BULLET_SOUND_PATH = gun_fire_sound_path
+            self.BULLET_FIRE_SOUND_PATH = gun_fire_sound_path
             self.RELOAD_SOUND_PATH = gun_reload_sound_path
 
             self.MAGAZINE_SIZE = MAGAZINE_SIZE
@@ -295,10 +344,29 @@ class Game:
         self.Player1.health -= PLAYER2_HIT_ENEMY
         self.Player2.health -= PLAYER1_HIT_ENEMY
 
-        ### Put everything on the screen ###
-        self.constants.win.blit(self.Player1.IMG, self.Player1.rect)
-        self.constants.win.blit(self.Player2.IMG, self.Player2.rect)
+        # Put everything on screen
+        self._draw()
 
+    def _draw(self):
+
+        ### Put everything on the screen ###
+
+        # Player
+        if self.constants.player_animation:
+            if self.Player1.direction == "RIGHT":
+                blitFrame(self.constants.win, self.constants.player_running_frames_right, self.Player1.rect)
+            elif self.Player1.direction == "LEFT":
+                blitFrame(self.constants.win, self.constants.player_running_frames_left, self.Player1.rect)
+
+            if self.Player2.direction == "RIGHT":
+                blitFrame(self.constants.win, self.constants.player_running_frames_right, self.Player2.rect)
+            elif self.Player1.direction == "LEFT":
+                blitFrame(self.constants.win, self.constants.player_running_frames_left, self.Player2.rect)
+        else:
+            self.constants.win.blit(self.Player1.IMG, self.Player1.rect)
+            self.constants.win.blit(self.Player2.IMG, self.Player2.rect)
+
+        # Bullets
         for bullet_position in self.Player1_GUN.LEFT_BULLET_RECTS:
             self.constants.win.blit(self.Player2_GUN.BULLET_IMG, bullet_position)
 
@@ -404,6 +472,15 @@ class Player:
 
         self.jumps = 0
 
+        if self.player_number is 1:
+            self.default_direction = "RIGHT"
+            self.opposite_direction = "LEFT"
+            self.direction = "RIGHT"
+        else:
+            self.default_direction = "LEFT"
+            self.opposite_direction = "RIGHT"
+            self.direction = "LEFT"
+
     def _jump(self):
         if self.jumps > 0:
             self.y_velocity = min(-self.init_obj.PLAYER_JUMP_FORCE, self.y_velocity - self.init_obj.PLAYER_JUMP_FORCE)
@@ -475,6 +552,11 @@ class Player:
     def _flip_img(self, flip_img):
         self.IMG = pygame.transform.flip(self.IMG, True, False)
         self.flipped = flip_img
+
+        if self.flipped:
+            self.direction = self.opposite_direction
+        elif self.flipped is False:
+            self.direction = self.default_direction
 
     def _display_health(self):
         displayText(self.init_obj.win, text=str(self.health), color=(255, 255, 255), position=self.rect.midtop)
@@ -567,8 +649,8 @@ class Gun:
     def __init__(self, init_obj, player_number, player_position, player1, player2):
         self.init_obj = init_obj
 
-        if init_obj.BULLET_SOUND_PATH is not None:
-            self.gunshot_sound = pygame.mixer.Sound(init_obj.BULLET_SOUND_PATH)
+        if self.init_obj.BULLET_FIRE_SOUND_PATH is not None:
+            self.gunshot_sound = pygame.mixer.Sound(self.init_obj.BULLET_FIRE_SOUND_PATH)
         else:
             self.gunshot_sound = None
             warnings.warn(
@@ -578,7 +660,7 @@ class Gun:
         if self.init_obj.RELOAD_SOUND_PATH is not None:
             self.reload_sound = pygame.mixer.Sound(self.init_obj.RELOAD_SOUND_PATH)
         else:
-            self.gunshot_sound = None
+            self.reload_sound = None
             warnings.warn(
                 "No reload sound path sent. To solve, pass it into the gun function of the initilization process",
                 UserWarning)
@@ -612,19 +694,23 @@ class Gun:
         # print(self.magazine)
         if Reload_weapon or self.magazine == 0:
             if self.reloading is False:
-                self.reload_sound.play()
+                self._playSound(self.reload_sound)
             self._reload()
 
         if self.magazine > 0 and not self.reloading:
             if Fire_weapon:
                 self.magazine -= 1
 
-                if self.gunshot_sound is not None:
-                    self.gunshot_sound.play()
+                self._playSound(self.gunshot_sound)
 
                 self._shoot()
 
         self._move_bullets()
+
+    @staticmethod
+    def _playSound(sound_object):
+        if sound_object is not None:
+            sound_object.play()
 
     def _shoot(self):
         if self.player_number == 0:
