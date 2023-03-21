@@ -147,9 +147,16 @@ class Game:
             self.WIN_X = pygame.display.get_window_size()[0]
             self.WIN_Y = pygame.display.get_window_size()[1]
 
-        def Player(self, player_size: tuple, player_img_path__facing_left: str, PLAYER_SPEED=5,
+        def Player(self, player_size: tuple, PLAYER_SPEED=5,
                    left_player_starting_pos: tuple = "default", PLAYER_HEALTH=5, GRAVITY=0.05, PLAYER_JUMP_FORCE=7.5,
-                   NO_JUMPS=2, running_left_sprite_sheet=None, each_image_size=None, **running_left_sprites_imgs):
+                   NO_JUMPS=2, player_img_path__facing_left: str = None, running_left_sprite_sheet=None,
+                   each_image_size=None, **running_left_sprites_imgs):
+
+            # Check that there is image
+            if any((player_img_path__facing_left, running_left_sprites_imgs, running_left_sprites_imgs is {})) is True:
+                pass
+            else:
+                raise ValueError("An image or sprite sheet of the player is needed")
 
             # Check sprite sheets
             if running_left_sprites_imgs and running_left_sprite_sheet:
@@ -168,13 +175,33 @@ class Game:
 
                 self.player_running_frames_right = [pygame.transform.flip(sprite, True, False) for sprite in
                                                     self.player_running_frames_left]
-            elif running_left_sprites_imgs is not None:
+
+                self.PLAYER1_IMG = pygame.transform.scale(self.player_running_frames_right[0], player_size)
+                self.PLAYER2_IMG = pygame.transform.flip(self.PLAYER1_IMG, True, False)
+
+
+
+            elif running_left_sprites_imgs != {}:
                 self.player_running_frames_left = \
-                    [pygame.transform.scale(image, each_image_size) for image in running_left_sprites_imgs]
+                    [pygame.transform.scale(pygame.image.load(image), each_image_size) for image in running_left_sprites_imgs]
                 self.player_animation = True
 
                 self.player_running_frames_right = [pygame.transform.flip(sprite, True, False) for sprite in
                                                     self.player_running_frames_left]
+
+                self.PLAYER1_IMG = pygame.transform.scale(self.player_running_frames_right[0], player_size)
+                self.PLAYER2_IMG = pygame.transform.flip(self.PLAYER1_IMG, True, False)
+
+            else:
+                # Scale imgs
+                self.PLAYER1_IMG = pygame.transform.scale(
+                    pygame.image.load(player_img_path__facing_left).convert_alpha(),
+                    player_size)
+
+                self.PLAYER2_IMG = pygame.transform.flip(
+                    pygame.transform.scale(
+                        pygame.image.load(os.path.join(player_img_path__facing_left)).convert_alpha(),
+                        player_size), True, False)
 
             # Set constants
             self.PLAYER_SPEED = PLAYER_SPEED
@@ -185,13 +212,7 @@ class Game:
 
             self.PLAYER_X, self.PLAYER_Y = player_size
 
-            # Scale imgs
-            self.PLAYER1_IMG = pygame.transform.scale(pygame.image.load(player_img_path__facing_left).convert_alpha(),
-                                                      player_size)
 
-            self.PLAYER2_IMG = pygame.transform.flip(
-                pygame.transform.scale(pygame.image.load(os.path.join(player_img_path__facing_left)).convert_alpha(),
-                                       player_size), True, False)
 
             # Get player starting pos
             if left_player_starting_pos == "default":
@@ -451,6 +472,7 @@ class Player:
         self.score = 0
         self.IMG = init_obj.PLAYER1_IMG if player_number == 0 else init_obj.PLAYER2_IMG
         self.mask = pygame.mask.from_surface(self.IMG)
+
         self.rect = self.mask.get_rect(topleft=[player_position[1], player_position[1]])
 
         # self.rect.inflate_ip(-self.rect.width,-self.rect.height)
