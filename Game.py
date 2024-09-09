@@ -6,6 +6,13 @@ import sys
 import math
 import logging as log
 import time
+from pydub import AudioSegment
+from pydub.silence import detect_nonsilent
+import pygame
+import tempfile
+from pydub import AudioSegment
+from pydub.silence import detect_nonsilent
+from pydub.utils import which
 
 log.basicConfig(filename='game_creater.log', format='%(asctime)s:%(name)s:%(message)s')
 
@@ -42,6 +49,36 @@ def displayText(win, text: str, color=(255, 255, 255), position='center', displa
         time.sleep(time_on_screen)
 
 
+def process_audio(path):
+    return path
+
+    # Doesn't work as of right now
+
+    # Load the audio file using pydub
+    audio = AudioSegment.from_file(path)
+
+    # Detect non-silent segments
+    # Adjust silence threshold (dBFS) and duration (ms) to suit your file
+    nonsilent_ranges = detect_nonsilent(audio, min_silence_len=200, silence_thresh=-30)
+
+    if nonsilent_ranges:
+        # Get the start of the first non-silent segment
+        start_trim = nonsilent_ranges[0][0]
+
+        # Trim the audio
+        trimmed_audio = audio[start_trim:]
+
+        # Create a temporary file and export the trimmed audio to it
+        temp_audio_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+        trimmed_audio.export(temp_audio_file.name, format="wav")
+
+        # Return the path of the temporary file
+        return temp_audio_file.name
+
+    # Return original path if no non-silent range is detected
+    return path
+
+
 class Game:
     def __init__(self, init_object, obstacles_x_y_pos=None, fill_base=True):
         self.constants = init_object
@@ -66,32 +103,52 @@ class Game:
         for x in range(len(obstacles_x_y_pos)):
             self.objects.append(Object(init_object, obstacles_x_y_pos[x]))
 
+        # Special case for loading sounds. Loading sounds usually is done in the Player or Gun classes themselevs
+        # Load sounds
+
+        if self.constants.INJURED_PLAYER_SOUND_PATH is not None:
+            self.injured_player_sound = pygame.mixer.Sound(self.constants.INJURED_PLAYER_SOUND_PATH)
+        else:
+            self.injured_player_sound = None
+            warnings.warn(
+                "No injured player sound path sent, there will not be any injured player sounds. To solve, pass it into the player function of the initialization process",
+                UserWarning)
+
     class init:
         win = None
 
         def __init__(self):
 
             pygame.init()
-
+            # just a declaration. will be edited in the setter methods below
             self.win = None
             self.WIN_X = None
             self.WIN_Y = None
+
             self.PLAYER_X = None
             self.PLAYER_Y = None
+
             self.TERRAIN_SIZE = None
+
             self.BULLET_SIZE = None
             self.BULLET_SOUND_PATH = None
-            self.RELOAD_SOUND_PATH = None
+
+            self.START_RELOAD_SOUND_PATH = None
+            self.END_RELOAD_SOUND_PATH = None
+
             self.BULLET_DISTANCE_RATIO = None
             self.BULLET_DISTANCE_FROM_PLAYER = None
+
             self.PLAYER1_IMG = None
             self.PLAYER2_IMG = None
             self.TERRAIN_IMG = None
             self.PLAYER1_BULLET = None
             self.PLAYER2_BULLET = None
+
             self.PLAYER_SPEED = None
             self.BULLET_SPEED = None
             self.MAGAZINE_SIZE = None
+
             self.RELOAD_TIME_SECONDS = None
             self.PLAYER_HEALTH = None
             self.GRAVITY = None
@@ -112,6 +169,8 @@ class Game:
             self.PLAYER1_JUMP_KEY = None
             self.PLAYER2_JUMP_KEY = None
 
+            self.INJURED_PLAYER_SOUND_PATH = None
+
         def Window(self, win_size: tuple, FULLSCREEN=False):
             if FULLSCREEN:
                 self.win = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
@@ -125,7 +184,7 @@ class Game:
 
         def Player(self, player_size: tuple, player_img_path__facing_left: str, PLAYER_SPEED=5,
                    left_player_starting_pos: tuple = "default", PLAYER_HEALTH=5, GRAVITY=0.05, PLAYER_JUMP_FORCE=7.5,
-                   NO_JUMPS=2):
+                   NO_JUMPS=2, injured_player_sound_path=None):
 
             # Set constants
             self.PLAYER_SPEED = PLAYER_SPEED
@@ -133,6 +192,7 @@ class Game:
             self.GRAVITY = GRAVITY
             self.PLAYER_JUMP_FORCE = PLAYER_JUMP_FORCE
             self.NO_JUMPS = NO_JUMPS
+            self.INJURED_PLAYER_SOUND_PATH = process_audio(injured_player_sound_path)
 
             self.PLAYER_X, self.PLAYER_Y = player_size
 
@@ -183,7 +243,7 @@ class Game:
                 self.PLAYER1_RELOAD_KEY = fire_reload_keys__both_players[0][1]
 
                 self.PLAYER2_FIRE_KEY = fire_reload_keys__both_players[1][0]
-                self.PLAYER2_RELOAD_KEY = fire_reload_keys__both_players[0][1]
+                self.PLAYER2_RELOAD_KEY = fire_reload_keys__both_players[1][1]
 
             elif len(fire_reload_keys__both_players) == 4:
                 self.PLAYER1_FIRE_KEY = fire_reload_keys__both_players[0]
@@ -199,7 +259,8 @@ class Game:
                 f"Keys values = {self.PLAYER1_MOVEMENT_KEYS, self.PLAYER2_MOVEMENT_KEYS, self.PLAYER1_FIRE_KEY, self.PLAYER1_RELOAD_KEY, self.PLAYER2_FIRE_KEY, self.PLAYER2_RELOAD_KEY, self.PLAYER1_JUMP_KEY, self.PLAYER2_JUMP_KEY}")
 
         def Bullet(self, bullet_size: int, bullet_img_path__facing_left: str, top_of_player_to_bullet__dist_ratio: int,
-                   gun_fire_sound_path=None, gun_reload_sound_path=None, BULLET_SPEED=15, MAGAZINE_SIZE=10,
+                   gun_fire_sound_path=None, gun_start_reload_sound_path=None, gun_end_reload_sound_path=None,
+                   BULLET_SPEED=15, MAGAZINE_SIZE=10,
                    RELOAD_TIME_SECONDS=5, ):
 
             self.BULLET_SIZE = bullet_size
@@ -207,8 +268,9 @@ class Game:
             self.BULLET_DISTANCE_RATIO = top_of_player_to_bullet__dist_ratio
             self.BULLET_DISTANCE_FROM_PLAYER = self.PLAYER_Y / self.BULLET_DISTANCE_RATIO
 
-            self.BULLET_SOUND_PATH = gun_fire_sound_path
-            self.RELOAD_SOUND_PATH = gun_reload_sound_path
+            self.BULLET_SOUND_PATH = process_audio(gun_fire_sound_path)
+            self.START_RELOAD_SOUND_PATH = process_audio(gun_start_reload_sound_path)
+            self.END_RELOAD_SOUND_PATH = process_audio(gun_end_reload_sound_path)
 
             self.MAGAZINE_SIZE = MAGAZINE_SIZE
             self.RELOAD_TIME_SECONDS = RELOAD_TIME_SECONDS
@@ -370,12 +432,17 @@ class Game:
                 if (bullet[0] < -self.constants.BULLET_SIZE) or bullet[0] > self.display_resolution[0]:
                     right_opponent_bullet_list.remove(bullet)
 
+        # Can play injured sound here
+        if score != 0:
+            self.injured_player_sound.play()
         # print('score:', score)
         return score, left_opponent_bullet_list, right_opponent_bullet_list
 
 
 class Player:
-    def __init__(self, init_obj, player_number: int, player_position: list, display_resolution_width_height: tuple):
+    def __init__(self, init_obj, player_number: int, player_position: list, display_resolution_width_height: tuple,
+                 ):
+
         self.init_obj = init_obj
 
         self.player_number = player_number
@@ -497,6 +564,16 @@ class Object:
         self.object_center_x = self.x_pos + self.width / 2
         self.object_center_y = self.y_pos + self.height / 2
 
+        # Load sounds
+
+        if self.constants.INJURED_PLAYER_SOUND_PATH is not None:
+            self.injured_player = pygame.mixer.Sound(self.constants.INJURED_PLAYER_SOUND_PATH)
+        else:
+            self.injured_player = None
+            warnings.warn(
+                "No injured player sound path sent, there will not be any injured player sounds. To solve, pass it into the player function of the initialization process",
+                UserWarning)
+
     def check_collision_player(self, player: object):
 
         if not self.rect.colliderect(player.rect):
@@ -575,12 +652,20 @@ class Gun:
                 "No bullet sound path sent, there will not be any bullet firing sounds. To solve, pass it into the gun function of the initilization process",
                 UserWarning)
 
-        if self.init_obj.RELOAD_SOUND_PATH is not None:
-            self.reload_sound = pygame.mixer.Sound(self.init_obj.RELOAD_SOUND_PATH)
+        if self.init_obj.START_RELOAD_SOUND_PATH is not None:
+            self.start_reload_sound = pygame.mixer.Sound(self.init_obj.START_RELOAD_SOUND_PATH)
         else:
-            self.gunshot_sound = None
+            self.start_reload_sound = None
             warnings.warn(
-                "No reload sound path sent. To solve, pass it into the gun function of the initilization process",
+                "No start reload sound path sent. To solve, pass it into the gun function of the initialization process",
+                UserWarning)
+
+        if self.init_obj.END_RELOAD_SOUND_PATH is not None:
+            self.end_reload_sound = pygame.mixer.Sound(self.init_obj.END_RELOAD_SOUND_PATH)
+        else:
+            self.start_reload_sound = None
+            warnings.warn(
+                "No end reload sound path sent. To solve, pass it into the gun function of the initialization process",
                 UserWarning)
 
         self.BULLET_IMG = self.init_obj.PLAYER1_BULLET if player_number == 0 else self.init_obj.PLAYER2_BULLET
@@ -611,8 +696,9 @@ class Gun:
 
         # print(self.magazine)
         if Reload_weapon or self.magazine == 0:
+            self.magazine = 0
             if self.reloading is False:
-                self.reload_sound.play()
+                self.start_reload_sound.play()
             self._reload()
 
         if self.magazine > 0 and not self.reloading:
@@ -676,6 +762,9 @@ class Gun:
         if time.time() - self.current_time > self.init_obj.RELOAD_TIME_SECONDS:
             self.magazine = self.Magazine_size
             self.reloading = False
+
+            # here, reload is completed
+            self.end_reload_sound.play()
 
 
 def run_game(init_obj, obstacles_x_y_pos, fill_base=False):
