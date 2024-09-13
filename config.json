@@ -1,0 +1,40 @@
+{
+    "NO_JUMPS": 4,
+    "PLAYER_SPEED": 10,
+    "PLAYER_SIZE": [
+        100,
+        117
+    ],
+    "JUMP_FORCE": 10,
+    "ADJUST_PLAYER_SIZE": true,
+    "GRAVITY": 0.07,
+    "MAGAZINE_SIZE": 10,
+    "BULLET_SIZE": 28,
+    "BULLET_SPEED": 20,
+    "RELOAD_TIME": 1.5,
+    "TERRAIN_SIZE": [
+        60,
+        60
+    ],
+    "ADJUST_TERRAIN_SIZE": true,
+    "OBSTACLE_POST": [
+        [
+            18,
+            12
+        ],
+        [
+            20,
+            13
+        ],
+        [
+            12,
+            16
+        ]
+    ],
+    "MIRROR_TERRAIN": false,
+    "OBSTACLE_POST DETAILS (also doesn't do shit": [
+        "first bit, mid bot portion,  second bit, mid portion to side.  third portion. 1/4 wings   4th portion, 1/8 wings                       the 3 at the edge",
+        "1/4 wing , top                       top most 2            mid 2"
+    ],
+    "Default details (this is just here, doesn't do shit": "JUMPS: 4, Player speed 7,jump force 7.5, MAGAZINE_SIZE, 20 bullet size 25, reload time 3, terrain size 60"
+}

@@ -57,7 +57,7 @@ def process_audio(path):
     # Load the audio file using pydub
     audio = AudioSegment.from_file(path)
 
-    # Detect non-silent segments
+    # Detect non-silent segmentsrun
     # Adjust silence threshold (dBFS) and duration (ms) to suit your file
     nonsilent_ranges = detect_nonsilent(audio, min_silence_len=200, silence_thresh=-30)
 
@@ -182,26 +182,35 @@ class Game:
             self.WIN_X = pygame.display.get_window_size()[0]
             self.WIN_Y = pygame.display.get_window_size()[1]
 
-        def Player(self, player_size: tuple, player_img_path__facing_left: str, PLAYER_SPEED=5,
-                   left_player_starting_pos: tuple = "default", PLAYER_HEALTH=5, GRAVITY=0.05, PLAYER_JUMP_FORCE=7.5,
-                   NO_JUMPS=2, injured_player_sound_path=None):
+        def Player(self, player_size: tuple, player_img_path_facing_left: str, PLAYER_SPEED=5,
+           left_player_starting_pos: tuple = "default", PLAYER_HEALTH=5, GRAVITY=0.05, PLAYER_JUMP_FORCE=7.5,
+           NO_JUMPS=2, injured_player_sound_path=None):
 
+            # Calculate scale factors based on the current resolution
+            scale_x = self.WIN_X / 1920
+            scale_y = self.WIN_Y / 1080
+            
+            # Scale player size
+            player_size = (player_size[0] * scale_x, player_size[1] * scale_y)
+
+            
             # Set constants
-            self.PLAYER_SPEED = PLAYER_SPEED
+            self.PLAYER_SPEED = PLAYER_SPEED * min(scale_x, scale_y)  # Assuming uniform speed scaling
             self.PLAYER_HEALTH = PLAYER_HEALTH
-            self.GRAVITY = GRAVITY
-            self.PLAYER_JUMP_FORCE = PLAYER_JUMP_FORCE
+            self.GRAVITY = GRAVITY * min(scale_x, scale_y)  # Assuming uniform gravity scaling
+            self.PLAYER_JUMP_FORCE = PLAYER_JUMP_FORCE * min(scale_x, scale_y)  # Assuming uniform jump force scaling
             self.NO_JUMPS = NO_JUMPS
             self.INJURED_PLAYER_SOUND_PATH = process_audio(injured_player_sound_path)
 
+            # Apply the scaled player size
             self.PLAYER_X, self.PLAYER_Y = player_size
 
             # Scale imgs
-            self.PLAYER1_IMG = pygame.transform.scale(pygame.image.load(player_img_path__facing_left).convert_alpha(),
+            self.PLAYER1_IMG = pygame.transform.scale(pygame.image.load(player_img_path_facing_left).convert_alpha(),
                                                       player_size)
 
             self.PLAYER2_IMG = pygame.transform.flip(
-                pygame.transform.scale(pygame.image.load(os.path.join(player_img_path__facing_left)).convert_alpha(),
+                pygame.transform.scale(pygame.image.load(os.path.join(player_img_path_facing_left)).convert_alpha(),
                                        player_size), True, False)
 
             # Get player starting pos
@@ -258,37 +267,56 @@ class Game:
             log.debug(
                 f"Keys values = {self.PLAYER1_MOVEMENT_KEYS, self.PLAYER2_MOVEMENT_KEYS, self.PLAYER1_FIRE_KEY, self.PLAYER1_RELOAD_KEY, self.PLAYER2_FIRE_KEY, self.PLAYER2_RELOAD_KEY, self.PLAYER1_JUMP_KEY, self.PLAYER2_JUMP_KEY}")
 
-        def Bullet(self, bullet_size: int, bullet_img_path__facing_left: str, top_of_player_to_bullet__dist_ratio: int,
-                   gun_fire_sound_path=None, gun_start_reload_sound_path=None, gun_end_reload_sound_path=None,
-                   BULLET_SPEED=15, MAGAZINE_SIZE=10,
-                   RELOAD_TIME_SECONDS=5, ):
+        def Bullet(self, bullet_size: int, bullet_img_path_facing_left: str, top_of_player_to_bullet_dist_ratio: int,
+           gun_fire_sound_path=None, gun_start_reload_sound_path=None, gun_end_reload_sound_path=None,
+           BULLET_SPEED=15, MAGAZINE_SIZE=10, RELOAD_TIME_SECONDS=5):
 
-            self.BULLET_SIZE = bullet_size
-            self.BULLET_SPEED = BULLET_SPEED
-            self.BULLET_DISTANCE_RATIO = top_of_player_to_bullet__dist_ratio
-            self.BULLET_DISTANCE_FROM_PLAYER = self.PLAYER_Y / self.BULLET_DISTANCE_RATIO
+            # Calculate scale factors based on the current resolution
+            scale_x = self.WIN_X / 1920
+            scale_y = self.WIN_Y / 1080
+            
+            # Scale bullet size
+            self.BULLET_SIZE = bullet_size * min(scale_x, scale_y)
+            
+            # Scale bullet speed
+            self.BULLET_SPEED = BULLET_SPEED * min(scale_x, scale_y)  # Assuming uniform speed scaling
+            
+            # Calculate scaled distance ratio and bullet distance from player
+            self.BULLET_DISTANCE_RATIO = top_of_player_to_bullet_dist_ratio
+            self.BULLET_DISTANCE_FROM_PLAYER = (self.PLAYER_Y / self.BULLET_DISTANCE_RATIO) * min(scale_x, scale_y)
 
+            
+            # Set other constants
+            self.MAGAZINE_SIZE = MAGAZINE_SIZE
+            self.RELOAD_TIME_SECONDS = RELOAD_TIME_SECONDS
+            
+            # Process sounds
             self.BULLET_SOUND_PATH = process_audio(gun_fire_sound_path)
             self.START_RELOAD_SOUND_PATH = process_audio(gun_start_reload_sound_path)
             self.END_RELOAD_SOUND_PATH = process_audio(gun_end_reload_sound_path)
 
-            self.MAGAZINE_SIZE = MAGAZINE_SIZE
-            self.RELOAD_TIME_SECONDS = RELOAD_TIME_SECONDS
-
             self.PLAYER1_BULLET = pygame.transform.scale(
-                pygame.image.load(bullet_img_path__facing_left),
+                pygame.image.load(bullet_img_path_facing_left),
                 (bullet_size, bullet_size))
             self.PLAYER2_BULLET = pygame.transform.flip(
-                pygame.transform.scale(pygame.image.load(os.path.join(bullet_img_path__facing_left)),
+                pygame.transform.scale(pygame.image.load(os.path.join(bullet_img_path_facing_left)),
                                        (bullet_size, bullet_size)), True,
                 False)
 
         def Terrain(self, terrain_img_path: str, terrain_size: tuple = 'default'):
 
             if terrain_size == 'default':
-                self.TERRAIN_SIZE = [self.PLAYER_Y / 4 * 3 for i in range(2)]
+                self.TERRAIN_SIZE = [60,60]
             else:
                 self.TERRAIN_SIZE = terrain_size
+
+
+             # Calculate scale factors based on the current resolution
+            scale_x = self.WIN_X / 1920
+            scale_y = self.WIN_Y / 1080
+
+
+            self.TERRAIN_SIZE = [self.TERRAIN_SIZE[0] * scale_x, self.TERRAIN_SIZE[1] * scale_y ]
 
             self.TERRAIN_IMG = pygame.transform.scale((pygame.image.load(terrain_img_path)),
                                                       self.TERRAIN_SIZE)
@@ -434,7 +462,8 @@ class Game:
 
         # Can play injured sound here
         if score != 0:
-            self.injured_player_sound.play()
+            if self.injured_player_sound.play() is not None:
+                self.injured_player_sound.play()
         # print('score:', score)
         return score, left_opponent_bullet_list, right_opponent_bullet_list
 
@@ -698,7 +727,8 @@ class Gun:
         if Reload_weapon or self.magazine == 0:
             self.magazine = 0
             if self.reloading is False:
-                self.start_reload_sound.play()
+                if self.start_reload_sound is not None:
+                    self.start_reload_sound.play()
             self._reload()
 
         if self.magazine > 0 and not self.reloading:
@@ -764,10 +794,21 @@ class Gun:
             self.reloading = False
 
             # here, reload is completed
-            self.end_reload_sound.play()
+            if self.end_reload_sound is not None:
+                self.end_reload_sound.play()
 
 
 def run_game(init_obj, obstacles_x_y_pos, fill_base=False):
+
+     # Calculate scale factors based on the current resolution
+    scale_x = init_obj.WIN_X / 1920
+    scale_y = init_obj.WIN_Y / 1080
+
+
+    obstacles_x_y_pos = [(scale_x * x , scale_y* y) for x, y in obstacles_x_y_pos]
+
+
+
     game = Game(init_obj, obstacles_x_y_pos, fill_base)
     Clock = pygame.time.Clock()
     while True:
